@@ -34,6 +34,7 @@ const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 
 const OPENAI_PROVIDER_NAME: &str = "OpenAI";
 pub const OPENAI_PROVIDER_ID: &str = "openai";
+pub const OPENAI_PROJECT_HEADER: &str = "OpenAI-Project";
 pub const CHATGPT_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 const AMAZON_BEDROCK_PROVIDER_NAME: &str = "Amazon Bedrock";
 pub const AMAZON_BEDROCK_PROVIDER_ID: &str = "amazon-bedrock";
@@ -144,6 +145,8 @@ pub struct ModelProviderAwsAuthInfo {
     pub profile: Option<String>,
     /// AWS region to use for provider-specific endpoints.
     pub region: Option<String>,
+    /// Amazon Bedrock project ID for inference cost attribution.
+    pub project: Option<String>,
 }
 
 impl ModelProviderInfo {
@@ -232,6 +235,15 @@ impl ModelProviderInfo {
         }
 
         Ok(headers)
+    }
+
+    /// Returns `self` with `name` set to `value`, replacing any existing value.
+    #[must_use]
+    pub fn with_http_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.http_headers
+            .get_or_insert_with(HashMap::new)
+            .insert(name.into(), value.into());
+        self
     }
 
     pub fn to_api_provider(&self, auth_mode: Option<AuthMode>) -> CodexResult<ApiProvider> {
@@ -343,7 +355,10 @@ impl ModelProviderInfo {
                         "OpenAI-Organization".to_string(),
                         "OPENAI_ORGANIZATION".to_string(),
                     ),
-                    ("OpenAI-Project".to_string(), "OPENAI_PROJECT".to_string()),
+                    (
+                        OPENAI_PROJECT_HEADER.to_string(),
+                        "OPENAI_PROJECT".to_string(),
+                    ),
                 ]
                 .into_iter()
                 .collect(),
@@ -371,6 +386,7 @@ impl ModelProviderInfo {
             aws: Some(aws.unwrap_or(ModelProviderAwsAuthInfo {
                 profile: None,
                 region: None,
+                project: None,
             })),
             wire_api: WireApi::Responses,
             query_params: None,
@@ -444,7 +460,7 @@ pub fn built_in_model_providers(
 ///
 /// Configured providers extend the built-in set. Built-in providers are not
 /// generally overridable, but the built-in Amazon Bedrock provider allows the
-/// user to set `aws.profile` and `aws.region`.
+/// user to set `aws.profile`, `aws.region`, and `aws.project`.
 pub fn merge_configured_model_providers(
     mut model_providers: HashMap<String, ModelProviderInfo>,
     configured_model_providers: HashMap<String, ModelProviderInfo>,
@@ -455,7 +471,7 @@ pub fn merge_configured_model_providers(
             if provider != ModelProviderInfo::default() {
                 return Err(format!(
                     "model_providers.{AMAZON_BEDROCK_PROVIDER_ID} only supports changing \
-`aws.profile` and `aws.region`; other non-default provider fields are not supported"
+`aws.profile`, `aws.region`, and `aws.project`; other non-default provider fields are not supported"
                 ));
             }
 
@@ -468,6 +484,9 @@ pub fn merge_configured_model_providers(
                 }
                 if let Some(region) = aws_override.region {
                     built_in_aws.region = Some(region);
+                }
+                if let Some(project) = aws_override.project {
+                    built_in_aws.project = Some(project);
                 }
             }
         } else {

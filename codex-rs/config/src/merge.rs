@@ -49,6 +49,31 @@ fn normalize_network_domain_keys(table: &mut toml::map::Map<String, TomlValue>) 
     }
 }
 
+/// Remove the value at nested `path`, pruning tables that become empty, and
+/// return the removed value (if any).
+pub(crate) fn remove_nested_field_and_prune_empty(
+    value: &mut TomlValue,
+    path: &[&str],
+) -> Option<TomlValue> {
+    let (key, remaining) = path.split_first()?;
+    let table = value.as_table_mut()?;
+    if remaining.is_empty() {
+        return table.remove(*key);
+    }
+
+    let removed = table
+        .get_mut(*key)
+        .and_then(|child| remove_nested_field_and_prune_empty(child, remaining));
+    if table
+        .get(*key)
+        .and_then(TomlValue::as_table)
+        .is_some_and(toml::map::Map::is_empty)
+    {
+        table.remove(*key);
+    }
+    removed
+}
+
 #[cfg(test)]
 #[path = "merge_tests.rs"]
 mod tests;

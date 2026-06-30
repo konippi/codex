@@ -2,6 +2,7 @@ use crate::ConfigRequirementsToml;
 use crate::ManagedHooksRequirementsToml;
 use crate::RequirementSource;
 use crate::RequirementsExecPolicyToml;
+use crate::merge::remove_nested_field_and_prune_empty;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use codex_utils_absolute_path::AbsolutePathBufGuard;
 use toml::Value as TomlValue;
@@ -168,24 +169,4 @@ fn strip_special_fields(layer_toml: &mut TomlValue) {
 
 fn remove_top_level_field(value: &mut TomlValue, key: &str) -> Option<TomlValue> {
     value.as_table_mut()?.remove(key)
-}
-
-fn remove_nested_field_and_prune_empty(value: &mut TomlValue, path: &[&str]) -> Option<TomlValue> {
-    let (key, remaining) = path.split_first()?;
-    let table = value.as_table_mut()?;
-    if remaining.is_empty() {
-        return table.remove(*key);
-    }
-
-    let removed = table
-        .get_mut(*key)
-        .and_then(|child| remove_nested_field_and_prune_empty(child, remaining));
-    if table
-        .get(*key)
-        .and_then(TomlValue::as_table)
-        .is_some_and(toml::map::Map::is_empty)
-    {
-        table.remove(*key);
-    }
-    removed
 }

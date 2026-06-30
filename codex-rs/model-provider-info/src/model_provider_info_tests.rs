@@ -235,6 +235,7 @@ base_url = "https://bedrock.example.com/v1"
 [aws]
 profile = "codex-bedrock"
 region = "us-west-2"
+project = "proj_abc123"
         "#;
 
     let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
@@ -244,6 +245,7 @@ region = "us-west-2"
         Some(ModelProviderAwsAuthInfo {
             profile: Some("codex-bedrock".to_string()),
             region: Some("us-west-2".to_string()),
+            project: Some("proj_abc123".to_string()),
         })
     );
 }
@@ -262,6 +264,7 @@ fn test_create_amazon_bedrock_provider() {
             aws: Some(ModelProviderAwsAuthInfo {
                 profile: None,
                 region: None,
+                project: None,
             }),
             wire_api: WireApi::Responses,
             query_params: None,
@@ -337,6 +340,7 @@ fn test_merge_configured_model_providers_applies_amazon_bedrock_profile_override
             aws: Some(ModelProviderAwsAuthInfo {
                 profile: Some("codex-bedrock".to_string()),
                 region: Some("us-west-2".to_string()),
+                project: Some("proj_abc123".to_string()),
             }),
             ..ModelProviderInfo::default()
         },
@@ -349,6 +353,7 @@ fn test_merge_configured_model_providers_applies_amazon_bedrock_profile_override
         .aws = Some(ModelProviderAwsAuthInfo {
         profile: Some("codex-bedrock".to_string()),
         region: Some("us-west-2".to_string()),
+        project: Some("proj_abc123".to_string()),
     });
 
     assert_eq!(
@@ -369,6 +374,7 @@ fn test_merge_configured_model_providers_rejects_amazon_bedrock_non_default_fiel
             aws: Some(ModelProviderAwsAuthInfo {
                 profile: Some("codex-bedrock".to_string()),
                 region: None,
+                project: None,
             }),
             ..ModelProviderInfo::default()
         },
@@ -380,7 +386,7 @@ fn test_merge_configured_model_providers_rejects_amazon_bedrock_non_default_fiel
             configured_model_providers,
         ),
         Err(
-            "model_providers.amazon-bedrock only supports changing `aws.profile` and `aws.region`; other non-default provider fields are not supported"
+            "model_providers.amazon-bedrock only supports changing `aws.profile`, `aws.region`, and `aws.project`; other non-default provider fields are not supported"
                 .to_string()
         )
     );
@@ -394,6 +400,7 @@ fn test_merge_configured_model_providers_allows_amazon_bedrock_default_fields() 
             aws: Some(ModelProviderAwsAuthInfo {
                 profile: None,
                 region: None,
+                project: None,
             }),
             wire_api: WireApi::Responses,
             ..ModelProviderInfo::default()
@@ -415,6 +422,7 @@ fn test_validate_provider_aws_rejects_conflicting_auth() {
         aws: Some(ModelProviderAwsAuthInfo {
             profile: None,
             region: None,
+            project: None,
         }),
         env_key: Some("AWS_BEARER_TOKEN_BEDROCK".to_string()),
         supports_websockets: false,
@@ -433,6 +441,7 @@ fn test_validate_provider_aws_rejects_websockets() {
         aws: Some(ModelProviderAwsAuthInfo {
             profile: None,
             region: None,
+            project: None,
         }),
         requires_openai_auth: false,
         supports_websockets: true,

@@ -19,6 +19,8 @@ use crate::diagnostics::config_error_from_toml;
 use crate::diagnostics::first_layer_config_error_from_entries as typed_first_layer_config_error_from_entries;
 use crate::diagnostics::io_error_from_config_error;
 use crate::merge::merge_toml_values;
+use crate::merge::remove_nested_field_and_prune_empty;
+use crate::overrides::apply_toml_override;
 use crate::overrides::build_cli_overrides_layer;
 use crate::project_root_markers::default_project_root_markers;
 use crate::project_root_markers::project_root_markers_from_config;
@@ -34,6 +36,7 @@ use crate::thread_config::ThreadConfigLoader;
 use codex_app_server_protocol::ConfigLayerSource;
 use codex_file_system::ExecutorFileSystem;
 use codex_git_utils::resolve_root_git_project_for_trust;
+use codex_model_provider_info::AMAZON_BEDROCK_PROVIDER_ID;
 use codex_protocol::config_types::ApprovalsReviewer;
 use codex_protocol::config_types::SandboxMode;
 use codex_protocol::config_types::TrustLevel;
@@ -54,10 +57,8 @@ const SYSTEM_CONFIG_TOML_FILE_UNIX: &str = "/etc/codex/config.toml";
 #[cfg(windows)]
 const DEFAULT_PROGRAM_DATA_DIR_WINDOWS: &str = r"C:\ProgramData";
 
-// Project-local config comes from repository contents, so it should not get to
-// choose where a user's credentials are sent or which local commands are run.
-// These settings are still supported from user, system, managed, and runtime
-// config layers.
+// Repo-controlled config can't choose where credentials/traffic go or which
+// commands run — except the Bedrock project ID, a cost-attribution-only tag.
 const PROJECT_LOCAL_CONFIG_DENYLIST: &[&str] = &[
     "openai_base_url",
     "chatgpt_base_url",
@@ -931,15 +932,31 @@ fn project_layer_entry(
 }
 
 fn sanitize_project_config(config: &mut TomlValue) -> Vec<String> {
-    let Some(table) = config.as_table_mut() else {
-        return Vec::new();
-    };
+    let bedrock_project = remove_nested_field_and_prune_empty(
+        config,
+        &[
+            "model_providers",
+            AMAZON_BEDROCK_PROVIDER_ID,
+            "aws",
+            "project",
+        ],
+    );
 
     let mut ignored_keys = Vec::new();
-    for key in PROJECT_LOCAL_CONFIG_DENYLIST {
-        if table.remove(*key).is_some() {
-            ignored_keys.push((*key).to_string());
+    if let Some(table) = config.as_table_mut() {
+        for key in PROJECT_LOCAL_CONFIG_DENYLIST {
+            if table.remove(*key).is_some() {
+                ignored_keys.push((*key).to_string());
+            }
         }
+    }
+
+    if let Some(project) = bedrock_project {
+        apply_toml_override(
+            config,
+            &format!("model_providers.{AMAZON_BEDROCK_PROVIDER_ID}.aws.project"),
+            project,
+        );
     }
 
     ignored_keys

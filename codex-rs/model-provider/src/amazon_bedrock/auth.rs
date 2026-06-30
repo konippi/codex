@@ -169,6 +169,7 @@ mod tests {
             &ModelProviderAwsAuthInfo {
                 profile: None,
                 region: Some(" us-west-2 ".to_string()),
+                project: None,
             },
             |name| match name {
                 AWS_REGION_ENV_VAR => Ok("eu-west-1".to_string()),
@@ -200,6 +201,7 @@ mod tests {
             &ModelProviderAwsAuthInfo {
                 profile: None,
                 region: None,
+                project: None,
             },
             |name| match name {
                 AWS_REGION_ENV_VAR => Ok(" eu-central-1 ".to_string()),
@@ -217,6 +219,7 @@ mod tests {
             &ModelProviderAwsAuthInfo {
                 profile: None,
                 region: None,
+                project: None,
             },
             |name| match name {
                 AWS_DEFAULT_REGION_ENV_VAR => Ok("ap-northeast-1".to_string()),
@@ -234,6 +237,7 @@ mod tests {
             &ModelProviderAwsAuthInfo {
                 profile: None,
                 region: None,
+                project: None,
             },
             missing_env_var,
         )

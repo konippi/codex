@@ -1458,6 +1458,10 @@
           "description": "AWS profile name to use. When unset, the AWS SDK default chain decides.",
           "type": "string"
         },
+        "project": {
+          "description": "Amazon Bedrock project ID for inference cost attribution.",
+          "type": "string"
+        },
         "region": {
           "description": "AWS region to use for provider-specific endpoints.",
           "type": "string"
